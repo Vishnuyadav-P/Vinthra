@@ -1,274 +1,404 @@
 (function(){
-  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  'use strict';
 
-  // brand palette switcher: Builder (Dark) vs Career (Light)
-  var PALETTE_KEY = 'vinthra-palette';
   var root = document.documentElement;
-  var themeToggle = document.getElementById('theme-toggle');
-  var currentPalette = 'builder';
+  var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  function applyPalette(name){
-    if(name !== 'career') name = 'builder';
-    currentPalette = name;
-    root.setAttribute('data-palette', name);
-    if(themeToggle){
-      themeToggle.setAttribute('aria-checked', name === 'career' ? 'true' : 'false');
-    }
-    try{ localStorage.setItem(PALETTE_KEY, name); }catch(e){}
+  /* =====================================================================
+     Screen profile
+     The <head> script reads the screen before first paint and sets
+     data-screen / data-input / data-orientation on <html>. Here we keep
+     that profile current (resize, rotation, plugging in a mouse) and let
+     the interactive parts re-render for the new screen.
+     ===================================================================== */
+  var readScreen = window.vinthraScreen || function(){};
+  var screenListeners = [];
+  function onScreenChange(fn){ screenListeners.push(fn); }
+  function isDesktopNav(){ return window.innerWidth >= 1024; }
+
+  var lastProfile = profileKey();
+  function profileKey(){
+    return root.getAttribute('data-screen') + '|' + root.getAttribute('data-input') + '|' + root.getAttribute('data-orientation');
+  }
+  var resizeQueued = false;
+  function handleResize(){
+    resizeQueued = false;
+    readScreen();
+    var key = profileKey();
+    var changed = key !== lastProfile;
+    lastProfile = key;
+    screenListeners.forEach(function(fn){ fn(changed); });
+  }
+  function queueResize(){
+    if(resizeQueued) return;
+    resizeQueued = true;
+    window.requestAnimationFrame(handleResize);
+  }
+  window.addEventListener('resize', queueResize, { passive: true });
+  window.addEventListener('orientationchange', queueResize);
+  if(window.matchMedia){
+    var mouseQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+    if(mouseQuery.addEventListener) mouseQuery.addEventListener('change', queueResize);
+    else if(mouseQuery.addListener) mouseQuery.addListener(queueResize);
   }
 
-  try{ currentPalette = localStorage.getItem(PALETTE_KEY) || 'builder'; }catch(e){}
-  if(currentPalette !== 'career') currentPalette = 'builder';
-  applyPalette(currentPalette);
+  /* =====================================================================
+     Theme (light / dark)
+     ===================================================================== */
+  var THEME_KEY = 'vinthra-theme';
+  var themeBtn = document.getElementById('theme-toggle');
+  var themeMeta = document.querySelector('meta[name="theme-color"]');
+  var userChoseTheme = false;
+  try{ userChoseTheme = !!localStorage.getItem(THEME_KEY); }catch(e){}
 
-  if(themeToggle){
-    themeToggle.addEventListener('click', function(){
-      var next = currentPalette === 'builder' ? 'career' : 'builder';
-      applyPalette(next);
+  function applyTheme(theme, save){
+    theme = theme === 'light' ? 'light' : 'dark';
+    root.setAttribute('data-theme', theme);
+    root.setAttribute('data-palette', theme === 'dark' ? 'builder' : 'career');
+    if(themeBtn){
+      themeBtn.setAttribute('aria-checked', theme === 'light' ? 'true' : 'false');
+      themeBtn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+      themeBtn.setAttribute('title', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+    }
+    if(themeMeta) themeMeta.setAttribute('content', theme === 'dark' ? '#0A0F1C' : '#F8FAFC');
+    if(save){
+      userChoseTheme = true;
+      try{
+        localStorage.setItem(THEME_KEY, theme);
+        localStorage.setItem('vinthra-palette', theme === 'dark' ? 'builder' : 'career');
+      }catch(e){}
+    }
+  }
+  applyTheme(root.getAttribute('data-theme') || (root.getAttribute('data-palette') === 'career' ? 'light' : 'dark'), false);
+  if(themeBtn){
+    themeBtn.addEventListener('click', function(){
+      applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
     });
   }
+  // follow the device's light/dark setting until the visitor picks one themselves
+  if(window.matchMedia){
+    var schemeQuery = window.matchMedia('(prefers-color-scheme: light)');
+    var onScheme = function(e){ if(!userChoseTheme) applyTheme(e.matches ? 'light' : 'dark', false); };
+    if(schemeQuery.addEventListener) schemeQuery.addEventListener('change', onScheme);
+    else if(schemeQuery.addListener) schemeQuery.addListener(onScheme);
+  }
 
-  // fixed-on-load, floating-pill-on-scroll header
-  var topNav = document.getElementById('top-nav');
-  if(topNav){
+  /* =====================================================================
+     Navigation
+     ===================================================================== */
+  var nav = document.getElementById('top-nav');
+  var navToggle = document.getElementById('nav-toggle');
+  var navLinks = document.getElementById('nav-links');
+
+  if(nav){
     var navTicking = false;
-    var updateNavState = function(){
-      topNav.classList.toggle('pill', window.scrollY > 12);
+    var updateNav = function(){
+      var isScrolled = window.scrollY > 20;
+      nav.classList.toggle('pill', isScrolled); // vinthra.vercel.app style floating pill
+      nav.classList.toggle('scrolled', isScrolled);
       navTicking = false;
     };
-    updateNavState();
+    updateNav();
     window.addEventListener('scroll', function(){
-      if(!navTicking){
-        window.requestAnimationFrame(updateNavState);
-        navTicking = true;
-      }
+      if(!navTicking){ navTicking = true; window.requestAnimationFrame(updateNav); }
     }, { passive: true });
   }
 
-  // mobile nav toggle
-  var navToggle = document.getElementById('nav-toggle');
-  var navLinks = document.getElementById('nav-links');
+  function isMenuOpen(){ return !!navLinks && navLinks.classList.contains('open'); }
+  function setMenu(open){
+    if(!navLinks || !navToggle) return;
+    navLinks.classList.toggle('open', open);
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
   if(navToggle && navLinks){
-    navToggle.addEventListener('click', function(){
-      var open = navLinks.classList.toggle('open');
-      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    navToggle.addEventListener('click', function(e){
+      e.stopPropagation();
+      setMenu(!isMenuOpen());
     });
-    navLinks.querySelectorAll('a').forEach(function(link){
-      link.addEventListener('click', function(){
-        navLinks.classList.remove('open');
-        navToggle.setAttribute('aria-expanded', 'false');
-      });
+    navLinks.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click', function(){ setMenu(false); });
     });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' && isMenuOpen()){ setMenu(false); navToggle.focus(); }
+    });
+    document.addEventListener('click', function(e){
+      if(isMenuOpen() && nav && !nav.contains(e.target)) setMenu(false);
+    });
+    onScreenChange(function(){ if(isDesktopNav() && isMenuOpen()) setMenu(false); });
   }
 
-  // scroll reveal — safe default (visible); JS opts elements into pre-reveal then animates in
+  // highlight the nav link for the section on screen
+  if(navLinks && 'IntersectionObserver' in window){
+    var spyLinks = {};
+    navLinks.querySelectorAll('a[href^="#"]').forEach(function(a){
+      var id = a.getAttribute('href').slice(1);
+      if(document.getElementById(id)) spyLinks[id] = a;
+    });
+    var spy = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(!entry.isIntersecting) return;
+        Object.keys(spyLinks).forEach(function(id){
+          var active = id === entry.target.id;
+          spyLinks[id].classList.toggle('is-active', active);
+          if(active) spyLinks[id].setAttribute('aria-current', 'true');
+          else spyLinks[id].removeAttribute('aria-current');
+        });
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    Object.keys(spyLinks).forEach(function(id){ spy.observe(document.getElementById(id)); });
+  }
+
+  /* =====================================================================
+     Scroll reveal — content is visible by default; JS opts it into a fade-up
+     ===================================================================== */
   if(!reduced && 'IntersectionObserver' in window){
     var revealEls = document.querySelectorAll('.reveal');
-    revealEls.forEach(function(el){ el.classList.add('pre-reveal'); });
-    var io = new IntersectionObserver(function(entries){
+    revealEls.forEach(function(el){
+      var siblings = Array.prototype.filter.call(el.parentElement.children, function(c){ return c.classList.contains('reveal'); });
+      el.style.setProperty('--i', Math.min(siblings.indexOf(el), 5));
+      el.classList.add('pre-reveal');
+    });
+    var revealIO = new IntersectionObserver(function(entries){
       entries.forEach(function(entry){
         if(entry.isIntersecting){
           entry.target.classList.remove('pre-reveal');
-          io.unobserve(entry.target);
+          revealIO.unobserve(entry.target);
         }
       });
-    }, {threshold:0.15, rootMargin:'0px 0px -60px 0px'});
-    revealEls.forEach(function(el){ io.observe(el); });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    revealEls.forEach(function(el){ revealIO.observe(el); });
   }
 
-  // hero deck parallax tilt
+  /* =====================================================================
+     Sessions marquee — scroll speed adapted to the screen size
+     ===================================================================== */
+  var marqueeTrack = document.querySelector('.marquee-track');
+  function tuneMarquee(){
+    if(!marqueeTrack || !marqueeTrack.firstElementChild) return;
+    var s = root.getAttribute('data-screen');
+    var pxPerSecond = (s === 'xs' || s === 'sm') ? 36 : s === 'md' ? 46 : 58;
+    var seconds = Math.max(14, Math.round(marqueeTrack.firstElementChild.offsetWidth / pxPerSecond));
+    marqueeTrack.style.setProperty('--marquee-dur', seconds + 's');
+  }
+  tuneMarquee();
+  onScreenChange(function(changed){ if(changed) tuneMarquee(); });
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(tuneMarquee);
+
+  /* =====================================================================
+     Hero card deck
+     Optimised so the browser only ever moves already-painted layers:
+     - the idle float is a CSS animation of the `translate` property, which is
+       independent of the card's `transform`, so shuffling/dragging never has to
+       stop it (no jump) and it never triggers layout or paint
+     - shuffling just writes each card's new position; a CSS transition glides it there
+     - drag and tilt writes are batched to one per animation frame
+     - the float pauses while the deck is off screen
+     ===================================================================== */
   var deck = document.getElementById('deck');
   var hero = document.querySelector('.hero');
-  if(deck && hero && !reduced){
-    hero.addEventListener('mousemove', function(e){
-      if(deck.dataset.dragging === 'true') return;
-      var r = hero.getBoundingClientRect();
-      var px = (e.clientX - r.left) / r.width - 0.5;
-      var py = (e.clientY - r.top) / r.height - 0.5;
-      deck.style.transform = 'rotateY(' + (px*16) + 'deg) rotateX(' + (py*-14) + 'deg)';
-    });
-    hero.addEventListener('mouseleave', function(){
-      deck.style.transform = 'rotateY(0deg) rotateX(0deg)';
-    });
-  }
 
-  // interactive hero cards: draggable + tap to move back
   if(deck){
     var cardEls = Array.prototype.slice.call(deck.querySelectorAll('.deck-card'));
-
-    var SLOTS = [
-      { fan: 'rotate(-11deg) translate(-52px, 14px) translateZ(72px)', delay: '0s', zIndex: 4 },
-      { fan: 'rotate(-3.5deg) translate(-16px, 4px) translateZ(48px)', delay: '1.4s', zIndex: 3 },
-      { fan: 'rotate(4deg) translate(18px, -2px) translateZ(24px)', delay: '0.7s', zIndex: 2 },
-      { fan: 'rotate(11.5deg) translate(54px, 10px) translateZ(0px)', delay: '2.1s', zIndex: 1 }
+    // relative fan: rotation, share of the horizontal spread, vertical offset, depth
+    var FAN = [
+      { rot: -10, x: -1.00, y: 14, z: 72 },
+      { rot: -3,  x: -0.32, y: 4,  z: 48 },
+      { rot: 4,   x: 0.36,  y: -2, z: 24 },
+      { rot: 11,  x: 1.04,  y: 10, z: 0  }
     ];
+    var SLOTS = [];
+    var limitX = 160, limitY = 70;
+    var cards = cardEls.map(function(el, i){ return { el: el, slot: i, moved: false, x: 0, y: 0 }; });
 
-    var cardStates = cardEls.map(function(el, i){
-      return {
-        el: el,
-        slot: i,
-        isMoved: false,
-        dragX: 0,
-        dragY: 0
-      };
-    });
+    // fan width follows the real card size and the space this screen gives the deck
+    function buildSlots(){
+      var cardW = cardEls[0].offsetWidth || 212;
+      var cardH = cardEls[0].offsetHeight || 276;
+      var avail = deck.clientWidth || cardW * 1.6;
+      var a = 11 * Math.PI / 180;
+      var rotExtra = (cardW * Math.cos(a) + cardH * Math.sin(a) - cardW) / 2;
+      var spread = Math.max(14, Math.min(avail / 2 - cardW / 2 - rotExtra - 6, cardW * 0.27));
 
-    function moveCardBack(state){
-      var slotData = SLOTS[state.slot];
-      state.el.classList.add('is-returning');
-      state.el.style.transform = slotData.fan;
-      state.el.title = 'Drag to move · Tap to move back';
-      setTimeout(function(){
-        state.isMoved = false;
-        state.dragX = 0;
-        state.dragY = 0;
-        state.el.classList.remove('is-moved');
-        state.el.classList.remove('is-returning');
-        state.el.style.transform = '';
-        state.el.style.zIndex = slotData.zIndex;
-      }, reduced ? 20 : 420);
+      // The tilted outer cards swing down and to the sides, which leaves the fan as a whole
+      // off-centre. Find the box around all four cards as drawn (nearer cards appear slightly
+      // larger), then shift the fan so that box sits in the exact centre of the deck.
+      var perspective = parseFloat(getComputedStyle(deck.parentNode).perspective) || 1400;
+      var left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+      FAN.forEach(function(f){
+        var rad = f.rot * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+        var scale = perspective / (perspective - f.z);
+        var cx = (f.x * spread * cos - f.y * sin) * scale;
+        var cy = (f.x * spread * sin + f.y * cos) * scale;
+        var halfW = (cardW * Math.abs(cos) + cardH * Math.abs(sin)) / 2 * scale;
+        var halfH = (cardW * Math.abs(sin) + cardH * Math.abs(cos)) / 2 * scale;
+        left = Math.min(left, cx - halfW); right = Math.max(right, cx + halfW);
+        top = Math.min(top, cy - halfH); bottom = Math.max(bottom, cy + halfH);
+      });
+      var centre = 'translate(' + Math.round(-(left + right) / 2) + 'px, ' + Math.round(-(top + bottom) / 2) + 'px) ';
+
+      SLOTS = FAN.map(function(f, i){
+        return {
+          fan: centre + 'rotate(' + f.rot + 'deg) translate(' + Math.round(f.x * spread) + 'px, ' + f.y + 'px) translateZ(' + f.z + 'px)',
+          z: FAN.length - i
+        };
+      });
+      limitX = Math.max(60, Math.round(avail / 2 - cardW / 4));
+      limitY = Math.max(40, Math.round((deck.clientHeight || cardH) * 0.22));
     }
+    function clampX(v){ return Math.max(-limitX, Math.min(limitX, v)); }
+    function clampY(v){ return Math.max(-limitY, Math.min(limitY, v)); }
 
-    function cycleCardToBack(tappedState){
-      var tappedSlot = tappedState.slot;
-      tappedState.el.classList.add('is-cycling');
-      tappedState.el.style.transform = 'translate3d(45px, -24px, 90px) ' + SLOTS[tappedSlot].fan;
+    // one place that writes a card's styles. The position goes straight into `transform`
+    // (not a CSS variable), so only that one element is restyled; CSS transitions the glide.
+    function render(c, liftedTransform){
+      var s = SLOTS[c.slot];
+      c.el.style.zIndex = c.moved ? 50 : s.z;
+      c.el.style.transform = liftedTransform ||
+        (c.moved ? 'translate3d(' + c.x + 'px, ' + c.y + 'px, 30px) ' + s.fan : s.fan);
+    }
+    function layoutDeck(){
+      buildSlots();
+      cards.forEach(function(c){
+        if(c.moved){ c.x = clampX(c.x); c.y = clampY(c.y); }
+        render(c);
+      });
+    }
+    // first layout: place the cards instantly (no glide from the CSS fallback positions)
+    deck.classList.add('is-settling');
+    layoutDeck();
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ deck.classList.remove('is-settling'); }); });
+    onScreenChange(layoutDeck); // later screen changes glide the cards to their new fan
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(layoutDeck);
 
+    // tap: lift the card, then every card glides to its new slot (CSS transition on transform)
+    var shuffling = false;
+    function shuffle(tapped){
+      if(shuffling) return;
+      shuffling = true;
+      var from = tapped.slot, last = SLOTS.length - 1;
+      render(tapped, 'translate3d(36px, -26px, 96px) ' + SLOTS[from].fan);
       setTimeout(function(){
-        cardStates.forEach(function(s){
-          if(tappedSlot < 3){
-            // Card moves to back slot 3, cards behind it shift forward
-            if(s === tappedState){
-              s.slot = 3;
-            } else if(s.slot > tappedSlot){
-              s.slot = s.slot - 1;
-            }
+        cards.forEach(function(c){
+          if(from < last){
+            if(c === tapped) c.slot = last;          // tapped card goes to the back
+            else if(c.slot > from) c.slot -= 1;
           } else {
-            // Tapped back card moves to front slot 0
-            if(s === tappedState){
-              s.slot = 0;
-            } else {
-              s.slot = s.slot + 1;
-            }
+            if(c === tapped) c.slot = 0;             // back card comes to the front
+            else c.slot += 1;
           }
         });
-
-        cardStates.forEach(function(s){
-          if(!s.isMoved){
-            var sd = SLOTS[s.slot];
-            s.el.style.setProperty('--fan', sd.fan);
-            s.el.style.setProperty('--delay', sd.delay);
-            s.el.style.zIndex = sd.zIndex;
-            s.el.classList.add('is-cycling');
-            s.el.style.transform = sd.fan;
-            setTimeout(function(){
-              s.el.classList.remove('is-cycling');
-              s.el.style.transform = '';
-            }, reduced ? 20 : 380);
-          }
-        });
-      }, reduced ? 20 : 160);
+        cards.forEach(function(c){ if(!c.moved) render(c); });
+        setTimeout(function(){ shuffling = false; }, reduced ? 0 : 320);
+      }, reduced ? 0 : 150);
     }
 
-    var activeState = null;
-    var pointerId = null;
-    var startX = 0, startY = 0;
-    var initialDragX = 0, initialDragY = 0;
-    var hasMoved = false;
+    // drag: pointer writes are batched to one per frame
+    var active = null, pointerId = null, dragging = false;
+    var startX = 0, startY = 0, baseX = 0, baseY = 0, lastX = 0, lastY = 0, frame = 0;
+    function paintDrag(){
+      frame = 0;
+      if(!active || !dragging) return;
+      active.el.style.transform = 'translate3d(' + clampX(baseX + lastX - startX) + 'px, ' +
+        clampY(baseY + lastY - startY) + 'px, 30px) ' + SLOTS[active.slot].fan;
+    }
+    function endDrag(){
+      if(frame){ cancelAnimationFrame(frame); frame = 0; }
+      try{ active.el.releasePointerCapture(pointerId); }catch(err){}
+      active.el.classList.remove('is-dragging');
+      deck.dataset.dragging = 'false';
+    }
 
-    cardStates.forEach(function(state){
-      var el = state.el;
-      el.title = 'Drag to move · Tap to move back';
+    cards.forEach(function(c){
+      var el = c.el;
 
       el.addEventListener('pointerdown', function(e){
-        if(e.button !== 0 && e.pointerType === 'mouse') return;
-        activeState = state;
-        pointerId = e.pointerId;
-        startX = e.clientX;
-        startY = e.clientY;
-        initialDragX = state.dragX;
-        initialDragY = state.dragY;
-        hasMoved = false;
-
+        if(e.pointerType === 'mouse' && e.button !== 0) return;
+        active = c; pointerId = e.pointerId; dragging = false;
+        startX = lastX = e.clientX; startY = lastY = e.clientY;
+        baseX = c.x; baseY = c.y;
         try{ el.setPointerCapture(pointerId); }catch(err){}
-        deck.dataset.dragging = 'true';
-        el.classList.add('is-dragging');
-        el.classList.remove('is-returning');
-        el.classList.remove('is-cycling');
-        el.style.zIndex = '100';
       });
 
       el.addEventListener('pointermove', function(e){
-        if(!activeState || activeState !== state) return;
-        var dx = e.clientX - startX;
-        var dy = e.clientY - startY;
-        if(!hasMoved && Math.hypot(dx, dy) > 5){
-          hasMoved = true;
+        if(active !== c) return;
+        lastX = e.clientX; lastY = e.clientY;
+        if(!dragging && Math.hypot(lastX - startX, lastY - startY) > 6){
+          // lift only once it is really a drag (not a tap, not a page-scroll swipe)
+          dragging = true;
+          deck.dataset.dragging = 'true';
+          el.classList.add('is-dragging');
+          el.style.zIndex = 100;
         }
-        if(hasMoved){
-          var curX = Math.max(-180, Math.min(180, initialDragX + dx));
-          var curY = Math.max(-80, Math.min(80, initialDragY + dy));
-          var slotData = SLOTS[state.slot];
-          el.style.transform = 'translate3d(' + curX + 'px, ' + curY + 'px, 30px) ' + slotData.fan;
-        }
+        if(dragging && !frame) frame = requestAnimationFrame(paintDrag);
       });
 
-      function handlePointerEnd(e){
-        if(!activeState || activeState !== state) return;
-        try{ el.releasePointerCapture(pointerId); }catch(err){}
-        deck.dataset.dragging = 'false';
-        el.classList.remove('is-dragging');
-
-        var dx = e.clientX - startX;
-        var dy = e.clientY - startY;
-        var dist = Math.hypot(dx, dy);
-
-        if(hasMoved && dist > 5){
-          var finalX = Math.max(-180, Math.min(180, initialDragX + dx));
-          var finalY = Math.max(-80, Math.min(80, initialDragY + dy));
-          if(Math.hypot(finalX, finalY) < 15){
-            moveCardBack(state);
-          } else {
-            state.dragX = finalX;
-            state.dragY = finalY;
-            state.isMoved = true;
-            el.classList.add('is-moved');
-            el.style.zIndex = '50';
-            el.title = 'Tap to move back to deck';
-          }
+      el.addEventListener('pointerup', function(e){
+        if(active !== c) return;
+        var wasDragging = dragging;
+        endDrag();
+        if(wasDragging){
+          var fx = clampX(baseX + e.clientX - startX), fy = clampY(baseY + e.clientY - startY);
+          c.moved = Math.hypot(fx, fy) >= 15;
+          c.x = c.moved ? fx : 0; c.y = c.moved ? fy : 0;
+          el.classList.toggle('is-moved', c.moved);
+          render(c);                                   // glides into place
+        } else if(c.moved){
+          c.moved = false; c.x = 0; c.y = 0;           // tap a moved card: back to the deck
+          el.classList.remove('is-moved');
+          render(c);
         } else {
-          if(state.isMoved){
-            moveCardBack(state);
-          } else {
-            cycleCardToBack(state);
-          }
+          shuffle(c);
         }
-
-        activeState = null;
-        pointerId = null;
-      }
-
-      el.addEventListener('pointerup', handlePointerEnd);
-      el.addEventListener('pointercancel', handlePointerEnd);
-    });
-  }
-
-  // domain card tilt + glare
-  if(!reduced){
-    document.querySelectorAll('.domain-card.tilt').forEach(function(card){
-      card.addEventListener('mousemove', function(e){
-        var r = card.getBoundingClientRect();
-        var px = (e.clientX - r.left) / r.width;
-        var py = (e.clientY - r.top) / r.height;
-        var rx = (py - 0.5) * -12;
-        var ry = (px - 0.5) * 12;
-        card.style.transform = 'rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) translateY(-4px)';
-        card.style.setProperty('--mx', (px*100) + '%');
-        card.style.setProperty('--my', (py*100) + '%');
+        active = null; pointerId = null; dragging = false;
       });
-      card.addEventListener('mouseleave', function(){
-        card.style.transform = 'rotateX(0deg) rotateY(0deg) translateY(0)';
+
+      // the browser took over the gesture (e.g. the visitor began scrolling): undo, not a tap
+      el.addEventListener('pointercancel', function(){
+        if(active !== c) return;
+        var wasDragging = dragging;
+        endDrag();
+        if(wasDragging) render(c);
+        active = null; pointerId = null; dragging = false;
       });
     });
+
+    // pause the idle float while the deck is off screen
+    if('IntersectionObserver' in window){
+      new IntersectionObserver(function(entries){
+        deck.classList.toggle('is-idle', !entries[0].isIntersecting);
+      }).observe(deck);
+    }
+
+    // gentle 3D tilt that follows the mouse (large screens, mouse only).
+    // Eased in a single animation-frame loop (one write per frame, stops as soon as it settles)
+    // rather than restarting a CSS transition on every mouse move — measured ~1/3 less style work.
+    if(hero && !reduced){
+      var tiltX = 0, tiltY = 0, aimX = 0, aimY = 0, tiltFrame = 0;
+      var stepTilt = function(){
+        tiltX += (aimX - tiltX) * 0.18;
+        tiltY += (aimY - tiltY) * 0.18;
+        if(Math.abs(aimX - tiltX) < 0.05 && Math.abs(aimY - tiltY) < 0.05){ tiltX = aimX; tiltY = aimY; }
+        deck.style.transform = (tiltX || tiltY) ? 'rotateY(' + tiltX.toFixed(2) + 'deg) rotateX(' + tiltY.toFixed(2) + 'deg)' : '';
+        var settled = tiltX === aimX && tiltY === aimY;
+        tiltFrame = settled ? 0 : requestAnimationFrame(stepTilt);
+        if(settled) deck.classList.remove('is-tilting'); // float resumes once the tilt settles
+      };
+      var aimTilt = function(x, y){
+        aimX = x; aimY = y;
+        if(!tiltFrame){
+          deck.classList.add('is-tilting');
+          tiltFrame = requestAnimationFrame(stepTilt);
+        }
+      };
+      hero.addEventListener('pointermove', function(e){
+        if(e.pointerType !== 'mouse' || dragging || !isDesktopNav()) return;
+        var r = hero.getBoundingClientRect();
+        aimTilt(((e.clientX - r.left) / r.width - 0.5) * 14, ((e.clientY - r.top) / r.height - 0.5) * -12);
+      });
+      hero.addEventListener('pointerleave', function(e){
+        if(e.pointerType === 'mouse') aimTilt(0, 0);
+      });
+    }
   }
 })();
