@@ -61,7 +61,7 @@
     </nav>
 
     <div class="nav-actions">
-      <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Switch colour theme">
+      <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Switch colour theme" aria-pressed="false">
         <svg class="icon-sun" aria-hidden="true"><use href="#i-sun"/></svg>
         <svg class="icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
       </button>
@@ -73,7 +73,7 @@
   </div>
 </header>
 
-<main id="main">
+<main id="main" tabindex="-1">
 
 <section class="hero" id="top">
   <div class="hero-bg" aria-hidden="true"></div>
@@ -99,22 +99,22 @@
     -->
     <div class="hero-visual">
       <div class="deck" id="deck" role="group" aria-label="Student pathway cards">
-        <article class="deck-card tone-blue">
+        <article class="deck-card tone-blue" role="button" tabindex="0" aria-label="Internship pathway card. Press Enter to move it through the deck.">
           <span class="deck-code">STU-01</span>
           <span class="deck-icon" aria-hidden="true"><svg><use href="#i-briefcase"/></svg></span>
           <div><h3>Internship</h3><p>Live industry role, not a simulation</p></div>
         </article>
-        <article class="deck-card tone-orange">
+        <article class="deck-card tone-orange" role="button" tabindex="0" aria-label="Hackathon pathway card. Press Enter to move it through the deck.">
           <span class="deck-code">STU-02</span>
           <span class="deck-icon" aria-hidden="true"><svg><use href="#i-lightning"/></svg></span>
           <div><h3>Hackathon</h3><p>Build, ship, pitch in 48 hours</p></div>
         </article>
-        <article class="deck-card tone-green">
+        <article class="deck-card tone-green" role="button" tabindex="0" aria-label="Mentorship pathway card. Press Enter to move it through the deck.">
           <span class="deck-code">STU-03</span>
           <span class="deck-icon" aria-hidden="true"><svg><use href="#i-people"/></svg></span>
           <div><h3>Mentorship</h3><p>1:1 guidance from working engineers</p></div>
         </article>
-        <article class="deck-card tone-violet">
+        <article class="deck-card tone-violet" role="button" tabindex="0" aria-label="Certificate pathway card. Press Enter to move it through the deck.">
           <span class="deck-code">STU-04</span>
           <span class="deck-icon" aria-hidden="true"><svg><use href="#i-ribbon"/></svg></span>
           <div><h3>Certificate</h3><p>Verified, shareable proof of work</p></div>
@@ -387,12 +387,25 @@
           <p class="foot-title">Contact us</p>
           <ul>
             <li><a href="tel:+919100652703">+91 91006 52703</a></li>
+            <li><a href="mailto:contact@vinthra.com">contact@vinthra.com</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="foot-title">Legal</p>
+          <ul>
+            <li><a href="terms.html">Terms &amp; Conditions</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
           </ul>
         </div>
       </nav>
     </div>
     <div class="foot-bottom">
-      <span>© 2026 Vinthra</span>
+      <span>© 2026 Vinthra Technologies</span>
+      <div class="foot-legal-links">
+        <a href="terms.html">Terms &amp; Conditions</a>
+        <span aria-hidden="true">·</span>
+        <a href="privacy.html">Privacy Policy</a>
+      </div>
       <span>Turn Vision Into Opportunity</span>
     </div>
   </div>

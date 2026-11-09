@@ -56,7 +56,7 @@
     root.setAttribute('data-theme', theme);
     root.setAttribute('data-palette', theme === 'dark' ? 'builder' : 'career');
     if(themeBtn){
-      themeBtn.setAttribute('aria-checked', theme === 'light' ? 'true' : 'false');
+      themeBtn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
       themeBtn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
       themeBtn.setAttribute('title', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
     }
@@ -90,63 +90,102 @@
   var navToggle = document.getElementById('nav-toggle');
   var navLinks = document.getElementById('nav-links');
 
+  // Active section tracking (scrollspy)
+  var navLinksUl = navLinks ? navLinks.querySelector('ul') : null;
+  var spyItems = [];
+  if(navLinksUl){
+    navLinksUl.querySelectorAll('a[href^="#"]').forEach(function(a){
+      var id = a.getAttribute('href').slice(1);
+      var sec = document.getElementById(id);
+      if(sec) spyItems.push({ id: id, link: a, sec: sec });
+    });
+  }
+
+  function updateSpy(){
+    if(!spyItems.length) return;
+    var scrollY = window.scrollY || window.pageYOffset || 0;
+    var vh = window.innerHeight || 800;
+    var docHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+    var navH = (nav && nav.offsetHeight) || 68;
+    var readingLine = navH + 80;
+
+    var currentId = '';
+
+    // If user has scrolled near the bottom of the page, activate the last section
+    if(vh + scrollY >= docHeight - 80){
+      currentId = spyItems[spyItems.length - 1].id;
+    } else {
+      for(var i = 0; i < spyItems.length; i++){
+        var rect = spyItems[i].sec.getBoundingClientRect();
+        if(rect.top <= readingLine && rect.bottom > readingLine){
+          currentId = spyItems[i].id;
+          break;
+        }
+      }
+    }
+
+    spyItems.forEach(function(item){
+      var active = item.id === currentId;
+      item.link.classList.toggle('is-active', active);
+      if(active) item.link.setAttribute('aria-current', 'location');
+      else item.link.removeAttribute('aria-current');
+    });
+  }
+
   if(nav){
     var navTicking = false;
     var updateNav = function(){
       var isScrolled = window.scrollY > 20;
       nav.classList.toggle('pill', isScrolled); // vinthra.vercel.app style floating pill
       nav.classList.toggle('scrolled', isScrolled);
+      updateSpy();
       navTicking = false;
     };
     updateNav();
     window.addEventListener('scroll', function(){
       if(!navTicking){ navTicking = true; window.requestAnimationFrame(updateNav); }
     }, { passive: true });
+    window.addEventListener('resize', updateSpy, { passive: true });
+    window.addEventListener('hashchange', function(){ setTimeout(updateSpy, 50); });
   }
 
   function isMenuOpen(){ return !!navLinks && navLinks.classList.contains('open'); }
-  function setMenu(open){
+  function setMenu(open, focusFirst){
     if(!navLinks || !navToggle) return;
     navLinks.classList.toggle('open', open);
     navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    if(open && focusFirst){
+      var firstLink = navLinks.querySelector('a');
+      if(firstLink) firstLink.focus();
+    }
   }
   if(navToggle && navLinks){
     navToggle.addEventListener('click', function(e){
       e.stopPropagation();
-      setMenu(!isMenuOpen());
+      setMenu(!isMenuOpen(), true);
     });
     navLinks.querySelectorAll('a').forEach(function(a){
-      a.addEventListener('click', function(){ setMenu(false); });
+      a.addEventListener('click', function(){
+        setMenu(false, false);
+        if(a.hash){
+          var targetId = a.hash.slice(1);
+          spyItems.forEach(function(item){
+            var active = item.id === targetId;
+            item.link.classList.toggle('is-active', active);
+            if(active) item.link.setAttribute('aria-current', 'location');
+            else item.link.removeAttribute('aria-current');
+          });
+        }
+      });
     });
     document.addEventListener('keydown', function(e){
-      if(e.key === 'Escape' && isMenuOpen()){ setMenu(false); navToggle.focus(); }
+      if(e.key === 'Escape' && isMenuOpen()){ setMenu(false, false); navToggle.focus(); }
     });
     document.addEventListener('click', function(e){
-      if(isMenuOpen() && nav && !nav.contains(e.target)) setMenu(false);
+      if(isMenuOpen() && nav && !nav.contains(e.target)) setMenu(false, false);
     });
-    onScreenChange(function(){ if(isDesktopNav() && isMenuOpen()) setMenu(false); });
-  }
-
-  // highlight the nav link for the section on screen
-  if(navLinks && 'IntersectionObserver' in window){
-    var spyLinks = {};
-    navLinks.querySelectorAll('a[href^="#"]').forEach(function(a){
-      var id = a.getAttribute('href').slice(1);
-      if(document.getElementById(id)) spyLinks[id] = a;
-    });
-    var spy = new IntersectionObserver(function(entries){
-      entries.forEach(function(entry){
-        if(!entry.isIntersecting) return;
-        Object.keys(spyLinks).forEach(function(id){
-          var active = id === entry.target.id;
-          spyLinks[id].classList.toggle('is-active', active);
-          if(active) spyLinks[id].setAttribute('aria-current', 'true');
-          else spyLinks[id].removeAttribute('aria-current');
-        });
-      });
-    }, { rootMargin: '-45% 0px -50% 0px' });
-    Object.keys(spyLinks).forEach(function(id){ spy.observe(document.getElementById(id)); });
+    onScreenChange(function(){ if(isDesktopNav() && isMenuOpen()) setMenu(false, false); });
   }
 
   /* =====================================================================
@@ -178,7 +217,7 @@
     if(!marqueeTrack || !marqueeTrack.firstElementChild) return;
     var s = root.getAttribute('data-screen');
     var pxPerSecond = (s === 'xs' || s === 'sm') ? 36 : s === 'md' ? 46 : 58;
-    var seconds = Math.max(14, Math.round(marqueeTrack.firstElementChild.offsetWidth / pxPerSecond));
+    var seconds = Math.max(14, Math.round((marqueeTrack.firstElementChild.offsetWidth + 12) / pxPerSecond));
     marqueeTrack.style.setProperty('--marquee-dur', seconds + 's');
   }
   tuneMarquee();
@@ -311,6 +350,21 @@
 
     cards.forEach(function(c){
       var el = c.el;
+
+      // Keyboard alternative for the tap/drag interaction: Enter or Space shuffles,
+      // and pressing it again returns a card that was moved by pointer input.
+      el.addEventListener('keydown', function(e){
+        if(e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        if(shuffling) return;
+        if(c.moved){
+          c.moved = false; c.x = 0; c.y = 0;
+          el.classList.remove('is-moved');
+          render(c);
+        }else{
+          shuffle(c);
+        }
+      });
 
       el.addEventListener('pointerdown', function(e){
         if(e.pointerType === 'mouse' && e.button !== 0) return;
