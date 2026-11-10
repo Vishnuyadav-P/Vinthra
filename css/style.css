@@ -195,12 +195,20 @@ img,svg,video{max-width:100%;}
 }
 .eyebrow .dot{width:6px; height:6px; border-radius:50%; background:var(--accent);}
 
-.section{position:relative; padding:clamp(72px, 9vw, 128px) 0;}
+.section{position:relative; padding:clamp(48px, 6vw, 76px) 0;}
 .section-band{background:var(--band); border-block:1px solid var(--border);}
-.section-head{max-width:740px; margin-bottom:clamp(36px, 5vw, 60px);}
-@media (min-width:1440px){ .section-head{max-width:900px;} }
+.section-head{max-width:880px; margin-bottom:clamp(24px, 3.5vw, 36px);}
+@media (min-width:1440px){ .section-head{max-width:1040px;} }
 .section-head h2{font-size:clamp(2rem, 1.35rem + 2.6vw, 3.25rem); line-height:1.06; letter-spacing:-0.035em;}
-.section-head p:not(.eyebrow){margin-top:16px; max-width:62ch; color:var(--text-muted); font-size:clamp(1.02rem, .98rem + .25vw, 1.15rem);}
+.section-head p:not(.eyebrow){margin-top:16px; max-width:85ch; color:var(--text-muted); font-size:clamp(1.02rem, .98rem + .25vw, 1.15rem);}
+#students-colleges .section-head{max-width:100%;}
+#students-colleges .section-head p:not(.eyebrow){
+  max-width:100%; white-space:nowrap;
+  font-size:clamp(0.85rem, 0.65rem + 0.42vw, 1.15rem);
+}
+@media (max-width:960px){
+  #students-colleges .section-head p:not(.eyebrow){white-space:normal;}
+}
 .subhead{font-size:clamp(1.25rem, 1.1rem + .6vw, 1.5rem); letter-spacing:-0.02em; margin-bottom:24px;}
 .label{font-family:var(--font-display); font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--primary-text);}
 
@@ -384,7 +392,7 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
 }
 
 /* ---------- Hero ---------- */
-.hero{position:relative; overflow:hidden; isolation:isolate; padding:clamp(40px, 7vw, 104px) 0 clamp(56px, 8vw, 120px);}
+.hero{position:relative; overflow:hidden; isolation:isolate; padding:clamp(36px, 5vw, 64px) 0 clamp(32px, 4.5vw, 52px);}
 .hero::before, .hero::after{content:""; position:absolute; z-index:-1; border-radius:50%; pointer-events:none;}
 .hero::before{
   width:min(720px, 90vw); aspect-ratio:1; top:-22%; right:-18%;
@@ -460,7 +468,11 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
   transition:transform .55s cubic-bezier(.22, 1, .36, 1);
   animation:cardFloat 6s ease-in-out infinite; animation-delay:var(--delay, 0s);
   will-change:transform, translate;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
   backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
   cursor:grab; user-select:none; -webkit-user-select:none;
   touch-action:pan-y; /* vertical swipes scroll the page; sideways drags move the card */
 }
@@ -476,10 +488,10 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
 }
 .deck-card > *{position:relative; pointer-events:none;}
 /* fallback fan (JS recomputes it to fit the screen) */
-.deck-card:nth-child(1){--fan:translate(3px, -19px) rotate(-10deg) translate(-52px, 14px) translateZ(72px); z-index:4;}
-.deck-card:nth-child(2){--fan:translate(3px, -19px) rotate(-3deg) translate(-17px, 4px) translateZ(48px); --delay:1.4s; z-index:3;}
-.deck-card:nth-child(3){--fan:translate(3px, -19px) rotate(4deg) translate(19px, -2px) translateZ(24px); --delay:.7s; z-index:2;}
-.deck-card:nth-child(4){--fan:translate(3px, -19px) rotate(11deg) translate(54px, 10px) translateZ(0px); --delay:2.1s; z-index:1;}
+.deck-card:nth-child(1){--fan:translate(3px, -19px) rotate(-10deg) translate(-52px, 14px); z-index:4;}
+.deck-card:nth-child(2){--fan:translate(3px, -19px) rotate(-3deg) translate(-17px, 4px); --delay:1.4s; z-index:3;}
+.deck-card:nth-child(3){--fan:translate(3px, -19px) rotate(4deg) translate(19px, -2px); --delay:.7s; z-index:2;}
+.deck-card:nth-child(4){--fan:translate(3px, -19px) rotate(11deg) translate(54px, 10px); --delay:2.1s; z-index:1;}
 @keyframes cardFloat{0%,100%{translate:0 0;} 50%{translate:0 -8px;}}
 
 .deck-code{
@@ -509,11 +521,8 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
 .deck.is-tilting .deck-card{animation-play-state:paused;}
 @media (prefers-reduced-motion: reduce){ .deck-card{animation:none;} }
 
-/* ---------- Students & Colleges (bento) ---------- */
-/* Side by side only from 1280px: any narrower and the college card is too thin to line up with its
-   neighbour, so the two stack at full width and share three columns instead. */
+/* ---------- Students & Colleges (stacked) ---------- */
 .pillars{display:grid; gap:var(--gap);}
-@media (min-width:1280px){ .pillars{grid-template-columns:minmax(0, 1.5fr) minmax(0, 1fr);} }
 .pillar{
   display:flex; flex-direction:column; gap:28px;
   padding:var(--card-pad);
@@ -531,19 +540,15 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
 .pillar-head h3{margin-top:14px; font-size:clamp(1.6rem, 1.3rem + 1.2vw, 2.1rem); letter-spacing:-0.03em;}
 .pillar-lead{margin-top:10px; max-width:62ch; color:var(--text-muted); font-size:1.02rem;}
 
-/* flex:1 lets the tiles grow to fill the card when the card beside it is taller (no empty gap) */
 .feature-grid{display:grid; gap:12px; flex:1 0 auto;}
 @media (min-width:600px){ .pillar-students .feature-grid{grid-template-columns:repeat(2, minmax(0, 1fr));} }
-/* stacked cards: three columns in both, so the columns carry straight on from one card to the next */
-@media (min-width:768px) and (max-width:1279.98px){ .pillar .feature-grid{grid-template-columns:repeat(3, minmax(0, 1fr));} }
-/* side by side: three equal rows in both, so the student and college tiles sit on the same lines */
-@media (min-width:1280px){ .feature-grid{grid-auto-rows:1fr;} }
+@media (min-width:768px){ .pillar .feature-grid{grid-template-columns:repeat(3, minmax(0, 1fr));} }
 .feature{
   display:flex; align-items:flex-start; gap:14px; padding:16px;
   background:var(--surface-2); border:1px solid transparent; border-radius:var(--radius);
   transition:border-color var(--dur) ease, background-color var(--dur) ease;
 }
-@media (min-width:768px) and (max-width:1279.98px){ .feature{flex-direction:column;} }
+@media (min-width:768px){ .feature{flex-direction:column;} }
 [data-input="mouse"] .feature:hover{background:var(--surface); border-color:var(--border-strong);}
 .feature-icon{
   width:40px; height:40px; border-radius:12px; display:grid; place-items:center; flex:none;
@@ -561,27 +566,18 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
 .chip-row{display:flex; flex-wrap:wrap; gap:8px;}
 .chip{font-size:.8125rem; font-weight:500; padding:6px 12px; border-radius:999px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-body);}
 @media (max-width:599.98px){ .pillar-foot .btn{width:100%;} }
-/* side by side: the same two parts in both cards, chips along the top and the button along the bottom */
-@media (min-width:1280px){ .pillar-foot{flex-flow:column nowrap; align-items:flex-start;} }
 
-/* Cards side by side share rows through subgrid, so one title wrapping moves its neighbours' text
-   too and every part stays on the same line. Browsers without subgrid keep the layout above. */
 @supports (grid-template-rows:subgrid){
   /* tiles in a row: title and text rows are shared */
-  @media (min-width:600px) and (max-width:1279.98px){
+  @media (min-width:600px){
     .feature{display:grid; grid-template-columns:auto minmax(0, 1fr); grid-template-rows:subgrid; grid-row:span 2; gap:0 14px;}
     .feature-icon{grid-row:span 2;}
     .feature > div{display:grid; grid-template-rows:subgrid; grid-row:span 2; row-gap:0;}
   }
   /* icon above the text: one more shared row */
-  @media (min-width:768px) and (max-width:1279.98px){
+  @media (min-width:768px){
     .feature{grid-template-columns:minmax(0, 1fr); grid-row:span 3;}
     .feature-icon{grid-row:auto; margin-bottom:14px;}
-  }
-  /* the two cards: head, tiles and footer rows are shared */
-  @media (min-width:1280px){
-    .pillar{display:grid; grid-template-columns:minmax(0, 1fr); grid-template-rows:subgrid; grid-row:span 3;}
-    .pillar-foot{margin-top:0;} /* fill the shared row rather than sink to the bottom of it */
   }
 }
 
@@ -653,8 +649,8 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
 }
 
 .program-lower{display:grid; gap:var(--gap); margin-top:var(--gap);}
-@media (min-width:900px){ .program-lower{grid-template-columns:repeat(2, minmax(0, 1fr));} }
-.deliverables, .quote-card{
+@media (min-width:900px){ .program-lower{grid-template-columns:repeat(2, minmax(0, 1fr)); align-items:center;} }
+.deliverables{
   display:flex; flex-direction:column;
   margin:0; padding:var(--card-pad);
   background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
@@ -670,16 +666,23 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
 .check svg{width:15px; height:15px;}
 .format-note{margin-top:auto; padding:16px 18px; border-radius:var(--radius); background:var(--surface-2);}
 .format-note p{margin-top:6px; font-size:.92rem; color:var(--text-muted);}
-.quote-card{
-  gap:20px;
-  background:linear-gradient(155deg, var(--primary-softer), var(--surface) 62%);
+
+.quote-block{
+  display:flex; flex-direction:column; gap:20px;
+  margin:0; padding:clamp(12px, 2vw, 28px);
+  background:none; border:none; box-shadow:none;
+  text-align:center;
 }
-.quote-card blockquote{
+.quote-block blockquote{
   margin:0; font-family:var(--font-display); font-weight:600; color:var(--text);
-  font-size:clamp(1.35rem, 1.1rem + 1vw, 1.85rem); line-height:1.3; letter-spacing:-0.025em;
+  font-size:clamp(1.4rem, 1.15rem + 1.2vw, 2.05rem); line-height:1.35; letter-spacing:-0.03em;
 }
-.quote-card figcaption{font-size:.9rem; font-weight:500; color:var(--text-muted);}
-.who-for{margin-top:auto; padding:16px 18px; border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); font-size:.95rem; color:var(--text-muted);}
+.quote-block figcaption{font-size:.95rem; font-weight:500; color:var(--text-muted);}
+.who-for{
+  margin-top:8px; padding:16px 18px; border-radius:var(--radius);
+  background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+  font-size:.95rem; color:var(--text-muted);
+}
 .who-for strong{color:var(--text);}
 
 /* ---------- Sessions marquee ---------- */
@@ -715,7 +718,9 @@ body{padding-top:calc(var(--nav-h) + env(safe-area-inset-top));}
   .marquee-group{flex-wrap:wrap;}
   .marquee-group[aria-hidden="true"]{display:none;}
 }
-.sessions-note{margin-top:18px; font-size:.9rem; color:var(--text-muted);}
+.sessions-note{margin-top:14px; font-size:.9rem; color:var(--text-muted);}
+#sessions{padding-bottom:0;}
+#sessions .section-head{margin-bottom:clamp(16px, 2.5vw, 24px);}
 
 /* ---------- Events ---------- */
 .event-grid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--gap);}

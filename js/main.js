@@ -241,10 +241,10 @@
     var cardEls = Array.prototype.slice.call(deck.querySelectorAll('.deck-card'));
     // relative fan: rotation, share of the horizontal spread, vertical offset, depth
     var FAN = [
-      { rot: -10, x: -1.00, y: 14, z: 72 },
-      { rot: -3,  x: -0.32, y: 4,  z: 48 },
-      { rot: 4,   x: 0.36,  y: -2, z: 24 },
-      { rot: 11,  x: 1.04,  y: 10, z: 0  }
+      { rot: -10, x: -1.00, y: 14, z: 0 },
+      { rot: -3,  x: -0.32, y: 4,  z: 0 },
+      { rot: 4,   x: 0.36,  y: -2, z: 0 },
+      { rot: 11,  x: 1.04,  y: 10, z: 0 }
     ];
     var SLOTS = [];
     var limitX = 160, limitY = 70;
