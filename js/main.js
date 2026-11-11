@@ -201,7 +201,7 @@
     var revealIO = new IntersectionObserver(function(entries){
       entries.forEach(function(entry){
         if(entry.isIntersecting){
-          entry.target.classList.remove('pre-reveal');
+          entry.target.classList.replace('pre-reveal', 'is-revealed');
           revealIO.unobserve(entry.target);
         }
       });
@@ -247,7 +247,7 @@
       { rot: 11,  x: 1.04,  y: 10, z: 0 }
     ];
     var SLOTS = [];
-    var limitX = 160, limitY = 70;
+    var limitX = 160, limitY = 70, liftX = 120;
     var cards = cardEls.map(function(el, i){ return { el: el, slot: i, moved: false, x: 0, y: 0 }; });
 
     // fan width follows the real card size and the space this screen gives the deck
@@ -284,6 +284,7 @@
       });
       limitX = Math.max(60, Math.round(avail / 2 - cardW / 4));
       limitY = Math.max(40, Math.round((deck.clientHeight || cardH) * 0.22));
+      liftX = Math.round(Math.min(cardW * 0.8, limitX));
     }
     function clampX(v){ return Math.max(-limitX, Math.min(limitX, v)); }
     function clampY(v){ return Math.max(-limitY, Math.min(limitY, v)); }
@@ -294,7 +295,7 @@
       var s = SLOTS[c.slot];
       c.el.style.zIndex = c.moved ? 50 : s.z;
       c.el.style.transform = liftedTransform ||
-        (c.moved ? 'translate3d(' + c.x + 'px, ' + c.y + 'px, 30px) ' + s.fan : s.fan);
+        (c.moved ? 'translate(' + c.x + 'px, ' + c.y + 'px) ' + s.fan : s.fan);
     }
     function layoutDeck(){
       buildSlots();
@@ -310,26 +311,24 @@
     onScreenChange(layoutDeck); // later screen changes glide the cards to their new fan
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(layoutDeck);
 
-    // tap: lift the card, then every card glides to its new slot (CSS transition on transform)
+    // tap: slide the card out clear of the stack, then every card glides to its new slot
+    // (CSS transition on transform). The card changes depth (z-index) only once it is clear,
+    // so the swap is not seen.
     var shuffling = false;
     function shuffle(tapped){
       if(shuffling) return;
       shuffling = true;
-      var from = tapped.slot, last = SLOTS.length - 1;
-      render(tapped, 'translate3d(36px, -26px, 96px) ' + SLOTS[from].fan);
+      var from = tapped.slot, n = SLOTS.length;
+      // going to the back: out to the left (away from the fan); coming to the front: out to the right
+      render(tapped, 'translate(' + (from === 0 ? -liftX : liftX) + 'px, -18px) scale(1.04) ' + SLOTS[from].fan);
       setTimeout(function(){
-        cards.forEach(function(c){
-          if(from < last){
-            if(c === tapped) c.slot = last;          // tapped card goes to the back
-            else if(c.slot > from) c.slot -= 1;
-          } else {
-            if(c === tapped) c.slot = 0;             // back card comes to the front
-            else c.slot += 1;
-          }
-        });
+        // rotate the deck so it always keeps its order (01 > 02 > 03 > 04): the front card goes to
+        // the back; any other card comes to the front and the cards before it move behind, in order
+        var k = from === 0 ? 1 : from;
+        cards.forEach(function(c){ c.slot = (c.slot - k + n) % n; });
         cards.forEach(function(c){ if(!c.moved) render(c); });
-        setTimeout(function(){ shuffling = false; }, reduced ? 0 : 320);
-      }, reduced ? 0 : 150);
+        shuffling = false; // the next tap can start now: CSS transitions retarget mid-glide
+      }, reduced ? 0 : 200);
     }
 
     // drag: pointer writes are batched to one per frame
@@ -338,8 +337,8 @@
     function paintDrag(){
       frame = 0;
       if(!active || !dragging) return;
-      active.el.style.transform = 'translate3d(' + clampX(baseX + lastX - startX) + 'px, ' +
-        clampY(baseY + lastY - startY) + 'px, 30px) ' + SLOTS[active.slot].fan;
+      active.el.style.transform = 'translate(' + clampX(baseX + lastX - startX) + 'px, ' +
+        clampY(baseY + lastY - startY) + 'px) ' + SLOTS[active.slot].fan;
     }
     function endDrag(){
       if(frame){ cancelAnimationFrame(frame); frame = 0; }
